@@ -1,27 +1,30 @@
 #include <iostream>
+#include <thread>
 #include "battery.hpp"
 #include "BMSData.hpp"
 
 static constexpr const char* serial_device = "/dev/serial2";
 
+static constexpr const unsigned startCharging_mv = 20 * 3600, stopCharging_mv = 20 * 4050;
+
 int main(int argc, char** argv) {
+	using namespace std::chrono;
+
 	try {
-		/*const uint8_t buf[] = {0x4e, 0x57, 0x01, 0x0b, 0, 0, 0, 0, 6, 0, 1,
-			0x79, 0x12, 1, 0x0e, 0xf9, 2, 0x0e, 0xf9, 3, 0x0e, 0xf9, 4, 0x0e, 0xf9, 5, 0x0e, 0xf9, 6, 0x0e, 0xf9,
-			0x80, 0x00, 0x1b, 0x81, 0, 0x1e, 0x82, 0, 0x1e, 0x83, 0x1d, 0xbc,
-			0x84, 0x27, 0x10, 0x85, 0x47, 0x86, 2, 0x87, 0, 1, 0x89, 0, 0, 0, 0, 0x8a, 0, 0x14, 0x8b, 0, 0,
-			0x8c, 0, 0x0b, 0x8e, 0x20, 0xd0, 0x8f, 0x15, 0xe0};
-		JKBMSData data;
-		data.deserialize(buf);*/
-
 		Battery bat(serial_device);
+	
+		while(true) {
+			try {
+				JKBMSData data = bat.ReadAll();
 
-		bat.SetChargeState(true);
-		bat.SetDishargeState(true);
+				if(data.status.charging_on && data.voltage_mv > stopCharging_mv) bat.SetChargeState(false);
+				else if(!data.status.charging_on && data.voltage_mv < startCharging_mv) bat.SetChargeState(true);
+			} catch(const std::exception& e) {
+				std::cerr << e.what() << std::endl;
+			}
 
-		auto data = bat.ReadAll();
-
-		std::cout << "Battery temperature: " << data.temp_battery << " C" << std::endl;
+			std::this_thread::sleep_for(minutes(1));
+		}
 	} catch(const std::exception& e) {
 		std::cerr << e.what() << std::endl;
 		return -1;
