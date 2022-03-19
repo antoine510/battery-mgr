@@ -2,6 +2,8 @@
 #include "battery.hpp"
 #include "BMSData.hpp"
 
+static constexpr const char* serial_device = "/dev/serial2";
+
 int main(int argc, char** argv) {
 	try {
 		/*const uint8_t buf[] = {0x4e, 0x57, 0x01, 0x0b, 0, 0, 0, 0, 6, 0, 1,
@@ -12,7 +14,7 @@ int main(int argc, char** argv) {
 		JKBMSData data;
 		data.deserialize(buf);*/
 
-		Battery bat("COM5");
+		Battery bat(serial_device);
 
 		bat.SetChargeState(true);
 		bat.SetDishargeState(true);

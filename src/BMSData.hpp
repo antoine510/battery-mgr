@@ -2,6 +2,10 @@
 
 #include <vector>
 
+#ifndef WINDOWS
+#include <stdint.h>
+#endif
+
 struct JKBMSWarning {
 	bool low_capacity : 1;
 	bool overtemp_mosfet : 1;

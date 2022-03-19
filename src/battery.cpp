@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <thread>
+#include <cstring>
 
 #ifdef WINDOWS
 #define _WINSOCKAPI_
@@ -12,7 +13,6 @@
 #pragma comment(lib, "Ws2_32.lib") // Without this, Ws2_32.lib is not included in static library.
 #endif
 #else
-#include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <arpa/inet.h>
@@ -20,6 +20,7 @@
 #include <unistd.h> // for close()
 #include <fcntl.h>
 #include <termios.h>
+#include <string.h>
 #endif
 
 #ifndef WINDOWS
@@ -109,7 +110,7 @@ Battery::Battery(const std::string& path, int baudrate) {
 
 #ifndef WINDOWS
 	// open() hangs on macOS or Linux devices(e.g. pocket beagle) unless you give it O_NONBLOCK
-	_fd = ::open(_path.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+	_fd = ::open(path.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
 	if (_fd == -1) throw std::runtime_error("Open failed: " + GET_ERROR_STR);
 
 	// We need to clear the O_NONBLOCK again because we can block while reading
@@ -150,7 +151,7 @@ Battery::Battery(const std::string& path, int baudrate) {
 
 	tc.c_cflag |= CLOCAL; // Without this a write() blocks indefinitely.
 
-	const int baudrate_or_define = _define_from_baudrate(_baudrate);
+	const int baudrate_or_define = _define_from_baudrate(baudrate);
 
 	if (cfsetispeed(&tc, baudrate_or_define) != 0) {
 		::close(_fd);
@@ -251,7 +252,7 @@ void Battery::SetDishargeState(bool enable) const {
 }
 
 std::vector<uint8_t> Battery::read() const {
-	int read_len;
+	int read_len = 0;
 	fd_set rx_fd_set{};
 
 	uint8_t _readBuffer[1024];
@@ -263,16 +264,8 @@ std::vector<uint8_t> Battery::read() const {
 
 	if(res > 0) {
 		read_len = ::read(_fd, _readBuffer, sizeof(_readBuffer));
-		if (read_len < 0) {
-			std::cerr << "Read failed: " << GET_ERROR_STR << std::endl;
-			break;
-		} else if(read_len == 0) {
-			std::cout << "RX closed gracefully" << std::endl;
-			break;
-		}
 	} else if(res < 0) {
 		std::cerr << "Select failed: " << GET_ERROR_STR << std::endl;
-		break;
 	}
 #else
 	if (!ReadFile(_handle, _readBuffer, sizeof(_readBuffer), LPDWORD(&read_len), NULL)) {
@@ -283,22 +276,19 @@ std::vector<uint8_t> Battery::read() const {
 	}
 #endif
 
-	if (!read_len) throw ReadTimeoutException();
+	if (read_len <= 0) throw ReadTimeoutException();
 
 	auto ret = std::vector<uint8_t>(read_len);
 	std::memcpy(ret.data(), _readBuffer, read_len);
-	std::this_thread::sleep_for(std::chrono::milliseconds(100));	// Pacing
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));	// Pacing, required by BMS
 	return ret;
 }
 
 void Battery::write(const uint8_t* cmd_buf, size_t sz) const {
 #ifndef WINDOWS
-	int sent_len;
-
-	sent_len = static_cast<int>(write(_fd, &cmd_buf, sizeof(CmdBuf)));
-
+	int sent_len = static_cast<int>(::write(_fd, cmd_buf, sz));
 	if (sent_len != sizeof(CmdBuf)) {
-		std::cerr << "Write wrong count: " << sent_len << " excpected " << data.size() << std::endl;
+		std::cerr << "Write wrong count: " << sent_len << " excpected " << sz << std::endl;
 		return;
 	}
 #else
