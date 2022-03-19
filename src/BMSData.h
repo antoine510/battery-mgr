@@ -1,12 +1,18 @@
 #pragma once
 
-#include <vector>
-
-#ifndef WINDOWS
-#include <stdint.h>
+#ifdef __GNUC__
+#define PACK( __Declaration__ ) __Declaration__ __attribute__((__packed__))
 #endif
 
-struct JKBMSWarning {
+#ifdef _MSC_VER
+#define PACK( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop))
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+PACK(struct JKBMSWarning {
 	bool low_capacity : 1;
 	bool overtemp_mosfet : 1;
 	bool overvoltage : 1;
@@ -20,31 +26,28 @@ struct JKBMSWarning {
 	bool overvoltage_cell : 1;
 	bool undervoltage_cell : 1;
 	unsigned _padding : 4;
-};
+});
 
-struct JKBMSStatus {
+PACK(struct JKBMSStatus {
 	bool charging_on : 1;
 	bool discharging_on : 1;
 	bool balancing_on : 1;
 	bool battery_connected : 1;
 	unsigned _padding : 12;
-};
+});
 
-struct JKBMSData {
-	JKBMSData(const uint8_t* buf);
-
-	std::vector<unsigned> voltage_cells_mv;
-	int temp_mosfet;
-	int temp_balance;
-	int temp_battery;
-	unsigned voltage_mv;
+PACK(struct JKBMSData {
 	int current_ma;
-	unsigned soc;
-	unsigned cycle_count;
+	unsigned voltage_mv;
 	unsigned cycle_capacity;
-
+	unsigned short voltage_cells_mv[20];
+	unsigned short cycle_count;
 	JKBMSWarning warnings;
 	JKBMSStatus status;
+	char temp_mosfet;
+	char temp_balance;
+	char temp_battery;
+	unsigned char soc;
 
 	/*unsigned overvolt_total;
 	unsigned undervolt_total;
@@ -83,4 +86,8 @@ struct JKBMSData {
 	unsigned temp_discharge_low_release;
 
 	unsigned poweron_minutes;*/
-};
+});
+
+#ifdef __cplusplus
+}
+#endif

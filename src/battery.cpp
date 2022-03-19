@@ -1,5 +1,5 @@
 #include "battery.hpp"
-#include "BMSData.hpp"
+#include "BMSParser.hpp"
 #include <iostream>
 #include <vector>
 #include <thread>
@@ -230,7 +230,7 @@ JKBMSData Battery::ReadAll() {
 	buf.cmd = CmdWord::READ_ALL;
 	buf.data_identification = 0;
 	write(finalizeBuf(buf), sizeof(buf));
-	return JKBMSData(read().data());
+	return parseBMSData(read().data());
 }
 
 void Battery::SetChargeState(bool enable) const {
