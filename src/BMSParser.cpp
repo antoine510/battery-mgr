@@ -16,26 +16,24 @@
 #define U32(x) ntohl(*(const uint32_t*)(x))
 #define TEMP(x) (char)(U16(x) > 100 ? 100 - U16(x) : U16(x))
 
-constexpr const unsigned expected_cell_count = sizeof(JKBMSData::voltage_cells_mv) / sizeof(unsigned short);
-
 JKBMSData parseBMSData(const unsigned char* buf) {
     JKBMSData res{};
 	auto p = buf + 11;  // Skip 4e 57 xx xx 00 00 00 00 06 00 01
 	uint16_t len = U16(buf + 2) + 2;
 	FIELD(0x79)
 	unsigned cellCount = *p++ / 3;
-	if(cellCount != expected_cell_count) std::cerr << "Wrong cell count\n";
+	if(cellCount != JKBMSData::cell_count) std::cerr << "Wrong cell count\n";
 	for(unsigned i = 0; i < cellCount; ++i, p += 3) {
-		if(i < expected_cell_count) res.voltage_cells_mv[i] = U16(p + 1);
+		if(i < JKBMSData::cell_count) res.voltage_cells_mv[i] = U16(p + 1);
 	}
 	FIELD(0x80)
 	res.temp_mosfet = TEMP(p);
 	p += 2;
 	FIELD(0x81)
-	res.temp_balance = TEMP(p);
+	res.temp_battery1 = TEMP(p);
 	p += 2;
 	FIELD(0x82)
-	res.temp_battery = TEMP(p);
+	res.temp_battery2 = TEMP(p);
 	p += 2;
 	FIELD(0x83)
 	res.voltage_mv = U16(p) * 10;

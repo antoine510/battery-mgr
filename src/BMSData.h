@@ -36,18 +36,20 @@ PACK(struct JKBMSStatus {
 	unsigned _padding : 12;
 });
 
-PACK(struct JKBMSData {
-	int current_ma;
+struct JKBMSData {
+	static constexpr const unsigned cell_count = 20;
+
+	unsigned short voltage_cells_mv[cell_count];
 	unsigned voltage_mv;
-	unsigned cycle_capacity;
-	unsigned short voltage_cells_mv[20];
+	int current_ma;
+	char temp_mosfet;
+	char temp_battery1;
+	char temp_battery2;
+	unsigned char soc;
 	unsigned short cycle_count;
+	unsigned cycle_capacity;
 	JKBMSWarning warnings;
 	JKBMSStatus status;
-	char temp_mosfet;
-	char temp_balance;
-	char temp_battery;
-	unsigned char soc;
 
 	/*unsigned overvolt_total;
 	unsigned undervolt_total;
@@ -86,7 +88,7 @@ PACK(struct JKBMSData {
 	unsigned temp_discharge_low_release;
 
 	unsigned poweron_minutes;*/
-});
+};
 
 #ifdef __cplusplus
 }
