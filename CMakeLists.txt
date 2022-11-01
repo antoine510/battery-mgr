@@ -38,9 +38,6 @@ elseif(LINUX_TARGET)
 	set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 endif()
 
-find_package(PkgConfig)
-pkg_check_modules(CZMQ libczmq REQUIRED IMPORTED_TARGET GLOBAL)
-
 include_directories("influxdb")
 
 include_directories("src")

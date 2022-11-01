@@ -110,7 +110,7 @@ Battery::Battery(const std::string& path, int baudrate) {
 
 #ifndef WINDOWS
 	// open() hangs on macOS or Linux devices(e.g. pocket beagle) unless you give it O_NONBLOCK
-	_fd = ::open(path.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+	_fd = ::open(path.c_str(), O_RDWR | O_NOCTTY);
 	if (_fd == -1) throw std::runtime_error("Open failed: " + GET_ERROR_STR);
 
 	// We need to clear the O_NONBLOCK again because we can block while reading
@@ -146,8 +146,8 @@ Battery::Battery(const std::string& path, int baudrate) {
 	tc.c_cflag &= ~(CSIZE | PARENB | CRTSCTS);
 	tc.c_cflag |= CS8;
 
-	tc.c_cc[VMIN] = 0; // We are ok with 0 bytes.
-	tc.c_cc[VTIME] = 10; // Timeout after 1 second.
+	tc.c_cc[VMIN] = 0;
+	tc.c_cc[VTIME] = 1;
 
 	tc.c_cflag |= CLOCAL; // Without this a write() blocks indefinitely.
 
@@ -230,6 +230,7 @@ JKBMSData Battery::ReadAll() {
 	buf.cmd = CmdWord::READ_ALL;
 	buf.data_identification = 0;
 	write(finalizeBuf(buf), sizeof(buf));
+	std::this_thread::sleep_for(std::chrono::milliseconds(500));
 	return parseBMSData(read().data());
 }
 
@@ -287,7 +288,7 @@ std::vector<uint8_t> Battery::read() const {
 void Battery::write(const uint8_t* cmd_buf, size_t sz) const {
 #ifndef WINDOWS
 	int sent_len = static_cast<int>(::write(_fd, cmd_buf, sz));
-	if (sent_len != sizeof(CmdBuf)) {
+	if (sent_len != sz) {
 		std::cerr << "Write wrong count: " << sent_len << " excpected " << sz << std::endl;
 		return;
 	}

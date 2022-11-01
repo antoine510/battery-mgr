@@ -17,7 +17,7 @@
 #define TEMP(x) (char)(U16(x) > 100 ? 100 - U16(x) : U16(x))
 
 JKBMSData parseBMSData(const unsigned char* buf) {
-    JKBMSData res{};
+	JKBMSData res{};
 	auto p = buf + 11;  // Skip 4e 57 xx xx 00 00 00 00 06 00 01
 	uint16_t len = U16(buf + 2) + 2;
 	FIELD(0x79)
