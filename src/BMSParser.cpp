@@ -14,7 +14,7 @@
 #define FIELD(x) if(*p++ != x) throw std::runtime_error("Missing field " + std::to_string(x));
 #define U16(x) ntohs(*(const uint16_t*)(x))
 #define U32(x) ntohl(*(const uint32_t*)(x))
-#define TEMP(x) (char)(U16(x) > 100 ? 100 - U16(x) : U16(x))
+#define TEMP(x) U16(x) > 99 ? 99 - (int)U16(x) : U16(x)
 
 JKBMSData parseBMSData(const unsigned char* buf) {
 	JKBMSData res{};
@@ -40,7 +40,7 @@ JKBMSData parseBMSData(const unsigned char* buf) {
 	p += 2;
 	FIELD(0x84)
 	auto unsigned_current = U16(p);
-	res.current_ma = ((unsigned_current & 0x8000) ? ~unsigned_current + 1 : unsigned_current) * 10;
+	res.current_ma = ((unsigned_current & 0x8000) ? -(unsigned_current & 0x7fff) : unsigned_current) * 10;
 	p += 2;
 	FIELD(0x85)
 	res.soc = *p++;
