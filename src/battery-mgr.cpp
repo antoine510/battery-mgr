@@ -7,8 +7,7 @@
 #include <wiringPi.h>
 
 static constexpr const int heater_pin = 16;
-static constexpr const int heater_turnon = 3;
-static constexpr const int heater_turnoff = 5;
+static constexpr const int heater_on_temp = 3;
 
 static constexpr const char* serial_device = "/dev/battery";
 
@@ -25,6 +24,7 @@ int main(int argc, char** argv) {
 	wiringPiSetup();
 	pinMode(heater_pin, OUTPUT);
 	digitalWrite(heater_pin, LOW);
+	bool heater_on = false;
 
 	try {
 		auto influxdb_token = getenv("INFLUXDB_TOKEN");
@@ -42,9 +42,13 @@ int main(int argc, char** argv) {
 				JKBMSData data = bat.ReadAll();
 
 				/****** HEATER MANAGEMENT ******/
-				int batt_temp_avg = (data.temp_battery1 + data.temp_battery2) / 2;
-				if(batt_temp_avg < heater_turnon) digitalWrite(heater_pin, HIGH);
-				else if(batt_temp_avg > heater_turnoff) digitalWrite(heater_pin, LOW);
+				if((data.temp_battery1 + data.temp_battery2) / 2 <= heater_on_temp) {
+					digitalWrite(heater_pin, HIGH);
+					heater_on = true;
+				} else {
+					digitalWrite(heater_pin, LOW);
+					heater_on = false;
+				}
 
 				/****** CYCLE COUNT MANAGEMENT ******/
 				//if(data.status.charging_on && data.voltage_mv > stopCharging_mv) bat.SetChargeState(false);
@@ -101,6 +105,7 @@ int main(int argc, char** argv) {
 					.field("charge-on", data.status.charging_on)
 					.field("discharge-on", data.status.discharging_on)
 					.field("balance-on", data.status.balancing_on)
+					.field("heater-on", heater_on)
 					.post_http(serverInfo);
 			} catch(const std::exception& e) {
 				std::cerr << e.what() << std::endl;
