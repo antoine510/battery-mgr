@@ -15,9 +15,6 @@ set(SOURCE_FILES
 	battery-mgr.cpp
 )
 add_executable(battery-mgr ${SOURCE_FILES})
-
-if(WINDOWS_HOST)
-	set_target_properties(battery-mgr PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/Install/bin/")
-endif()
+target_link_libraries(battery-mgr wiringPi)
 
 install(TARGETS battery-mgr RUNTIME)

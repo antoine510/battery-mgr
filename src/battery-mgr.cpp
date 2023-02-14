@@ -4,6 +4,11 @@
 #include "BMSData.h"
 #include "BMSParser.hpp"
 #include <influxdb.hpp>
+#include <wiringPi.h>
+
+static constexpr const int heater_pin = 16;
+static constexpr const int heater_turnon = 3;
+static constexpr const int heater_turnoff = 5;
 
 static constexpr const char* serial_device = "/dev/battery";
 
@@ -16,6 +21,10 @@ static constexpr const unsigned startCharging_mv = 20 * 3600, stopCharging_mv = 
 
 int main(int argc, char** argv) {
 	using namespace std::chrono;
+
+	wiringPiSetup();
+	pinMode(heater_pin, OUTPUT);
+	digitalWrite(heater_pin, LOW);
 
 	try {
 		auto influxdb_token = getenv("INFLUXDB_TOKEN");
@@ -32,6 +41,12 @@ int main(int argc, char** argv) {
 			try {
 				JKBMSData data = bat.ReadAll();
 
+				/****** HEATER MANAGEMENT ******/
+				int batt_temp_avg = (data.temp_battery1 + data.temp_battery2) / 2;
+				if(batt_temp_avg < heater_turnon) digitalWrite(heater_pin, HIGH);
+				else if(batt_temp_avg > heater_turnoff) digitalWrite(heater_pin, LOW);
+
+				/****** CYCLE COUNT MANAGEMENT ******/
 				//if(data.status.charging_on && data.voltage_mv > stopCharging_mv) bat.SetChargeState(false);
 				//else if(!data.status.charging_on && data.voltage_mv < startCharging_mv) bat.SetChargeState(true);
 
