@@ -8,6 +8,7 @@
 
 static constexpr const int heater_pin = 16;
 static constexpr const int heater_on_temp = 3;
+static constexpr const int heater_min_voltage_mv = 68000;
 
 static constexpr const char* serial_device = "/dev/battery";
 
@@ -42,7 +43,7 @@ int main(int argc, char** argv) {
 				JKBMSData data = bat.ReadAll();
 
 				/****** HEATER MANAGEMENT ******/
-				if((data.temp_battery1 + data.temp_battery2) / 2 <= heater_on_temp) {
+				if((data.temp_battery1 + data.temp_battery2) / 2 <= heater_on_temp && data.voltage_mv > heater_min_voltage_mv) {
 					digitalWrite(heater_pin, HIGH);
 					heater_on = true;
 				} else {
