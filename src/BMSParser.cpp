@@ -5,11 +5,7 @@
 #include <string>
 #include <iostream>
 
-#ifdef WINDOWS
-#include <winsock2.h>
-#else
 #include <netinet/in.h>
-#endif
 
 #define FIELD(x) if(*p++ != x) throw std::runtime_error("Missing field " + std::to_string(x));
 #define U16(x) ntohs(*(const uint16_t*)(x))
