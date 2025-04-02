@@ -6,12 +6,9 @@
 #include <cstring>
 
 JKBMSData Battery::ReadAll() {
-	RdBuf buf;
-	buf.cmd = CmdWord::READ_ALL;
-	buf.data_identification = 0;
-	_serial.Write(finalizeBuf(buf), sizeof(buf));
-	std::this_thread::sleep_for(std::chrono::milliseconds(500));
-	return parseBMSData(_serial.Read().data());
+	RdBuf rdbuf;
+	Serial::Instance().Write(finalizeBuf(rdbuf), sizeof(RdBuf));
+	return parseBMSData(Serial::Instance().Read().data());
 }
 
 void Battery::SetChargeState(bool enable) const {
@@ -19,8 +16,8 @@ void Battery::SetChargeState(bool enable) const {
 	buf.cmd = CmdWord::WRITE;
 	buf.data_identification = 0xab;
 	buf.write_byte = enable;
-	_serial.Write(finalizeBuf(buf), sizeof(buf));
-	_serial.Read();
+	Serial::Instance().Write(finalizeBuf(buf), sizeof(buf));
+	Serial::Instance().Read();
 }
 
 void Battery::SetDishargeState(bool enable) const {
@@ -28,8 +25,8 @@ void Battery::SetDishargeState(bool enable) const {
 	buf.cmd = CmdWord::WRITE;
 	buf.data_identification = 0xac;
 	buf.write_byte = enable;
-	_serial.Write(finalizeBuf(buf), sizeof(buf));
-	_serial.Read();
+	Serial::Instance().Write(finalizeBuf(buf), sizeof(buf));
+	Serial::Instance().Read();
 }
 
 void Battery::SetCellOvervoltage(uint16_t maxVoltage_mV, uint16_t recoveryVoltage_mV) const {
@@ -37,11 +34,11 @@ void Battery::SetCellOvervoltage(uint16_t maxVoltage_mV, uint16_t recoveryVoltag
 	buf.cmd = CmdWord::WRITE;
 	buf.data_identification = Register::CELL_OVERVOLTAGE_CUT;
 	buf.write_word = htons(maxVoltage_mV);
-	_serial.Write(finalizeBuf(buf), sizeof(buf));
-	_serial.Read();
+	Serial::Instance().Write(finalizeBuf(buf), sizeof(buf));
+	Serial::Instance().Read();
 
 	buf.data_identification = Register::CELL_OVERVOLTAGE_RECOVER;
 	buf.write_word = htons(recoveryVoltage_mV);
-	_serial.Write(finalizeBuf(buf), sizeof(buf));
-	_serial.Read();
+	Serial::Instance().Write(finalizeBuf(buf), sizeof(buf));
+	Serial::Instance().Read();
 }

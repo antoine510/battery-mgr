@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
-#include "SerialHandler.hpp"
+#include "Serial.hpp"
 #include <netinet/in.h>
 
 #define PACK( __Declaration__ ) __Declaration__ __attribute__((__packed__))
@@ -11,8 +11,6 @@
 
 class Battery {
 public:
-	Battery(const std::string& path, int baudrate = 115200) : _serial(path, baudrate) {}
-
 	struct JKBMSData ReadAll();
 
 	void SetChargeState(bool enable) const;
@@ -88,6 +86,4 @@ private:
 		buf.cksum = htonl(buf.cksum);
 		return bytes;
 	}
-
-	SerialHandler _serial;
 };

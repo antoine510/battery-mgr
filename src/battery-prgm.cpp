@@ -6,7 +6,9 @@ static constexpr const char* serial_device = "/dev/battery";
 
 int main(int argc, char** argv) {
 	try {
-		Battery bat(serial_device);
+		Serial::SetupInstance(serial_device, 115200);
+
+		Battery bat;
 		bat.SetCellOvervoltage(4000, 3900);
 
 		std::cout << "SetCellOvervoltage OK!" << std::endl;

@@ -27,11 +27,13 @@ int main(int argc, char** argv) {
 	digitalWrite(heater_pin, LOW);
 	bool heater_on = false;
 
+	Serial::SetupInstance(serial_device, 115200);
+
 	try {
 		auto influxdb_token = getenv("INFLUXDB_TOKEN");
 		if(!influxdb_token) throw std::invalid_argument("Missing INFLUXDB_TOKEN environment variable");
 
-		Battery bat(serial_device);
+		Battery bat;
 		influxdb_cpp::server_info serverInfo("127.0.0.1", 8086, influxdb_org_name, influxdb_token, influxdb_bucket);
 
 		while(true) {

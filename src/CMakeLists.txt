@@ -9,8 +9,8 @@ set(SOURCE_FILES
 	BMSParser.hpp
 	BMSParser.cpp
 
-	SerialHandler.hpp
-	SerialHandler.cpp
+	Serial.hpp
+	Serial.cpp
 
 	battery.hpp
 	battery.cpp
