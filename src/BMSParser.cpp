@@ -32,11 +32,11 @@ JKBMSData parseBMSData(const unsigned char* buf) {
 	res.temp_battery2 = TEMP(p);
 	p += 2;
 	FIELD(0x83)
-	res.voltage_mv = U16(p) * 10;
+	res.voltage_cv = U16(p);
 	p += 2;
 	FIELD(0x84)
 	auto unsigned_current = U16(p);
-	res.current_ma = ((unsigned_current & 0x8000) ? -(unsigned_current & 0x7fff) : unsigned_current) * 10;
+	res.current_ca = ((unsigned_current & 0x8000) ? -(unsigned_current & 0x7fff) : unsigned_current);
 	p += 2;
 	FIELD(0x85)
 	res.soc = *p++;

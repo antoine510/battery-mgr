@@ -11,19 +11,13 @@ set(SOURCE_FILES
 
 	Serial.hpp
 	Serial.cpp
+	MQTTComms.hpp
+	MQTTComms.cpp
 
 	battery.hpp
 	battery.cpp
 )
 add_executable(battery-mgr ${SOURCE_FILES} battery-mgr.cpp)
-target_link_libraries(battery-mgr wiringPi pthread crypt)
-
-########
-# Battery programmer
-########
-
-add_executable(battery-prgm ${SOURCE_FILES} battery-prgm.cpp)
-
+target_link_libraries(battery-mgr wiringPi pthread crypt PahoMqttCpp::paho-mqttpp3 flatbuffers_target)
 
 install(TARGETS battery-mgr RUNTIME)
-install(TARGETS battery-prgm RUNTIME)

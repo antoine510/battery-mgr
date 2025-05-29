@@ -40,8 +40,8 @@ struct JKBMSData {
 	static constexpr const unsigned cell_count = 20;
 
 	unsigned short voltage_cells_mv[cell_count];
-	unsigned voltage_mv;
-	int current_ma;
+	unsigned short voltage_cv;
+	short current_ca;
 	char temp_mosfet;
 	char temp_battery1;
 	char temp_battery2;

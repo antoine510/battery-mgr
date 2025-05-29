@@ -40,6 +40,11 @@ endif()
 
 include_directories("influxdb")
 
+find_package(PahoMqttCpp CONFIG REQUIRED)
+find_package(Flatbuffers CONFIG REQUIRED)
+
+add_subdirectory(microtonome-idl)
+
 include_directories("src")
 add_subdirectory("src")
 

@@ -3,21 +3,21 @@
 #include "battery.hpp"
 #include "BMSData.h"
 #include "BMSParser.hpp"
+#include "MQTTComms.hpp"
+#include "battery_generated.h"
 #include <influxdb.hpp>
 #include <wiringPi.h>
 
-static constexpr const int heater_pin = 16;
-static constexpr const int heater_on_temp = 3;
-static constexpr const int heater_min_voltage_mv = 68000;
+constexpr int heater_pin = 16;
+constexpr int heater_on_temp = 4;
+constexpr unsigned short heater_min_voltage_cv = 6600;
 
-static constexpr const char* serial_device = "/dev/battery";
+constexpr const char* serial_device = "/dev/battery";
 
-static constexpr const char* influxdb_org_name = "Microtonome";
-static constexpr const char* influxdb_bucket = "Batterie";
+constexpr const char* influxdb_org_name = "Microtonome";
+constexpr const char* influxdb_bucket = "Batterie";
 
 using LogPeriod = std::chrono::duration<int64_t, std::ratio<300>>;
-
-static constexpr const unsigned startCharging_mv = 20 * 3600, stopCharging_mv = 20 * 4050;
 
 int main(int argc, char** argv) {
 	using namespace std::chrono;
@@ -28,6 +28,8 @@ int main(int argc, char** argv) {
 	bool heater_on = false;
 
 	Serial::SetupInstance(serial_device, 115200);
+
+	MQTTComms mqtt("battery-mgr");
 
 	try {
 		auto influxdb_token = getenv("INFLUXDB_TOKEN");
@@ -45,17 +47,13 @@ int main(int argc, char** argv) {
 				JKBMSData data = bat.ReadAll();
 
 				/****** HEATER MANAGEMENT ******/
-				if((data.temp_battery1 + data.temp_battery2) / 2 <= heater_on_temp && data.voltage_mv > heater_min_voltage_mv) {
+				if((data.temp_battery1 + data.temp_battery2) / 2 <= heater_on_temp && data.voltage_cv > heater_min_voltage_cv) {
 					digitalWrite(heater_pin, HIGH);
 					heater_on = true;
 				} else {
 					digitalWrite(heater_pin, LOW);
 					heater_on = false;
 				}
-
-				/****** CYCLE COUNT MANAGEMENT ******/
-				//if(data.status.charging_on && data.voltage_mv > stopCharging_mv) bat.SetChargeState(false);
-				//else if(!data.status.charging_on && data.voltage_mv < startCharging_mv) bat.SetChargeState(true);
 
 				if(*(int16_t*)(&data.warnings) != 0) {	// There are warnings!
 					influxdb_cpp::builder()
@@ -77,8 +75,8 @@ int main(int argc, char** argv) {
 
 				influxdb_cpp::builder()
 					.meas("BMSDatapoint")
-					.field("voltage", data.voltage_mv / 1000.f, 2)
-					.field("current", data.current_ma / 1000.f, 2)
+					.field("voltage", data.voltage_cv / 100.f, 2)
+					.field("current", data.current_ca / 100.f, 2)
 					.field("cell1", data.voltage_cells_mv[0] / 1000.f, 3)
 					.field("cell2", data.voltage_cells_mv[1] / 1000.f, 3)
 					.field("cell3", data.voltage_cells_mv[2] / 1000.f, 3)
@@ -110,6 +108,17 @@ int main(int argc, char** argv) {
 					.field("balance-on", data.status.balancing_on)
 					.field("heater-on", heater_on)
 					.post_http(serverInfo);
+
+				flatbuffers::FlatBufferBuilder builder;
+				auto cellVoltages = builder.CreateVector(data.voltage_cells_mv, 20);
+				api::BatteryState state = api::BatteryState::OK;
+				if(data.warnings.overcurrent_charge || data.warnings.overcurrent_discharge) state = api::BatteryState::Overcurrent;
+				else if(data.warnings.overtemp || data.warnings.overtemp_box || data.warnings.overtemp_mosfet) state = api::BatteryState::Overtemperature;
+				else if(data.warnings.overvoltage || data.warnings.overvoltage_cell) state = api::BatteryState::Overvoltage;
+				else if(data.warnings.lowtemp) state = api::BatteryState::Undertemperature;
+				else if(data.warnings.undervoltage || data.warnings.undervoltage_cell) state = api::BatteryState::Undervoltage;
+				api::CreateBattery(builder, data.soc, data.voltage_cv, data.current_ca, cellVoltages, (data.temp_battery1 + data.temp_battery2) / 2, state);
+				mqtt.Publish("Battery/House", builder);
 			} catch(const std::exception& e) {
 				std::cerr << e.what() << std::endl;
 			}
