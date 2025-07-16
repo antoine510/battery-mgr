@@ -1,7 +1,6 @@
 #include "Serial.hpp"
 
 #include <cstring>
-#include <thread>
 #include <unistd.h>
 #include <fcntl.h>
 #include <asm/termbits.h>
@@ -20,8 +19,19 @@ Serial::Serial(const std::string& path, int baudrate) {
 	tc.c_oflag = 0;
 	tc.c_lflag = 0;
 	tc.c_cflag = CLOCAL | CS8 | BOTHER;
-	tc.c_cc[VMIN] = 0;	// Immediate read
+	tc.c_cc[VMIN] = 0;
 	tc.c_cc[VTIME] = 0;
+
+	/** HACK to really set the baudrate!! */
+	tc.c_ispeed = 19200;
+	tc.c_ospeed = 19200;
+
+	if(ioctl(_fd, TCSETS2, &tc) != 0) {
+		::close(_fd);
+		throw std::runtime_error("TCSETS2 failed: " + GET_ERROR_STR);
+	}
+	/** END HACK */
+
 	tc.c_ispeed = baudrate;
 	tc.c_ospeed = baudrate;
 
@@ -36,32 +46,38 @@ Serial::~Serial() noexcept {
 	_fd = -1;
 }
 
-void Serial::waitForData() const {
+bool Serial::WaitForData(int64_t timeout_ns) const {
 	fd_set rx_fd_set{};
 	FD_SET(_fd, &rx_fd_set);
 
-	int res = pselect(_fd + 1, &rx_fd_set, nullptr, nullptr, &_timeout, nullptr);
+	timespec tout{timeout_ns / 1'000'000'000, timeout_ns % 1'000'000'000};
+	int res = pselect(_fd + 1, &rx_fd_set, nullptr, nullptr, &tout, nullptr);
 	if(res < 0) {
+		if(errno == EINTR) return false;
 		throw std::runtime_error("Select failed: " + GET_ERROR_STR);
 	} else if(res == 0) {
-		throw ReadTimeoutException();
+		return false;
 	}
+	return true;
 }
 
-std::vector<uint8_t> Serial::Read() const {
-	waitForData();
-
-	std::this_thread::sleep_for(std::chrono::milliseconds(500));	// Wait for all data
-
-	int read_len = ::read(_fd, _read_buf, read_buf_sz);
-	if (read_len <= 0) throw ReadTimeoutException();
-
-	auto ret = std::vector<uint8_t>(read_len);
-	std::memcpy(ret.data(), _read_buf, read_len);
-	return ret;
+std::vector<uint8_t> Serial::Read(size_t expectedSize) const {
+	static uint8_t buffer[4096];
+	ssize_t offset = 0;
+	do {
+		ssize_t numRead = ::read(_fd, buffer + offset, sizeof(buffer) - offset);
+		if(numRead < 0) throw std::runtime_error("Read failed: " + GET_ERROR_STR);
+		offset += numRead;
+		if(expectedSize && offset >= expectedSize) break;
+	} while(WaitForData());
+	if(offset == 0) throw ReadTimeoutException();
+	if(expectedSize && offset < expectedSize) throw std::runtime_error("Invalid receive size: " + std::to_string(offset));
+	std::vector<uint8_t> res(offset);
+	std::memcpy(res.data(), buffer, offset);
+	return std::move(res);
 }
 
 void Serial::Write(const uint8_t* buf, size_t sz) const {
 	ioctl(_fd, TCFLSH, 2);	// Flush read and write kernel queues
-	if (::write(_fd, buf, sz) != sz) throw WriteException();
+	if(::write(_fd, buf, sz) != sz) throw WriteException();
 }

@@ -3,40 +3,39 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
-#include <memory>
+#include <mutex>
 
 class Serial {
 public:
+	Serial(const std::string& path, int baudrate);
 	~Serial() noexcept;
 
-	static void SetupInstance(const std::string& path, int baudrate = 9600) {
-		inst = std::unique_ptr<Serial>(new Serial(path, baudrate));
-	}
-	static Serial& Instance() { return *inst; }
-
-    class ReadTimeoutException : public std::runtime_error {
+	class ReadTimeoutException : public std::runtime_error {
 	public:
 		ReadTimeoutException() : std::runtime_error("Read timed-out") {}
 	};
 
-    class WriteException : public std::runtime_error {
+	class WriteException : public std::runtime_error {
 	public:
 		WriteException() : std::runtime_error("Write failure") {}
 	};
 
-	std::vector<uint8_t> Read() const;
+	auto SendCommandResponse(const uint8_t* command, size_t size, size_t responseSize = 0) const {
+		std::scoped_lock lk(_serialMutex);
+		Write(command, size);
+		return Read(responseSize);
+	}
+	void SendCommand(const uint8_t* command, size_t size) const {
+		std::scoped_lock lk(_serialMutex);
+		Write(command, size);
+	}
+
+protected:
+	bool WaitForData(int64_t timeout_ns = 100'000'000) const;
+	std::vector<uint8_t> Read(size_t expectedSize) const;
 	void Write(const uint8_t* buf, size_t sz) const;
 
-private:
-	Serial(const std::string& path, int baudrate);
-
-	void waitForData() const;
-
-	inline static std::unique_ptr<Serial> inst;
-
 	int _fd = -1;
-	struct timespec _timeout = { 0, 500'000'000 };
-    
-    static constexpr size_t read_buf_sz = 1024;
-    mutable unsigned char _read_buf[read_buf_sz];
+
+	mutable std::mutex _serialMutex;
 };
